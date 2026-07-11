@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Wordle: Birthday Edition!</title>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <style>
+    :root {
+      --bg-color: #ffffff;
+      --text-color: #1a1a1b;
+      --border-color: #d3d6da;
+      --empty-border: #d3d6da;
+      --filled-border: #878a8c;
+      --correct: #6aaa64;
+      --present: #c9b458;
+      --absent: #787c7e;
+      --key-bg: #d3d6da;
+      --key-text: #1a1a1b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 100vh;
+      padding: 10px 0 20px 0;
+    }
+
+    header {
+      text-align: center;
+      width: 100%;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 10px;
+      margin-bottom: 10px;
+    }
+
+    h1 {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    h2 {
+      font-size: 14px;
+      font-weight: 400;
+      color: #555;
+      letter-spacing: 0.5px;
+    }
+
+    #toast-container {
+      position: fixed;
+      top: 70px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .toast {
+      background-color: #1a1a1b;
+      color: #ffffff;
+      padding: 12px 20px;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 700;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    }
+
+    .toast.show {
+      opacity: 1;
+    }
+
+    #board-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-grow: 1;
+      width: 100%;
+      max-width: 350px;
+      padding: 10px;
+    }
+
+    #board {
+      display: grid;
+      grid-template-rows: repeat(6, 1fr);
+      grid-gap: 5px;
+      width: 100%;
+      aspect-ratio: 5 / 6;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      grid-gap: 5px;
+    }
+
+    .tile {
+      border: 2px solid var(--empty-border);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: clamp(20px, 6vw, 32px);
+      font-weight: 700;
+      text-transform: uppercase;
+      user-select: none;
+      transition: transform 0.25s ease, background-color 0.25s ease, border-color 0.25s ease;
+    }
+
+    .tile.filled {
+      border-color: var(--filled-border);
+      animation: pop 0.1s ease-in-out;
+    }
+
+    .tile.correct {
+      background-color: var(--correct);
+      border-color: var(--correct);
+      color: #ffffff;
+    }
+
+    .tile.present {
+      background-color: var(--present);
+      border-color: var(--present);
+      color: #ffffff;
+    }
+
+    .tile.absent {
+      background-color: var(--absent);
+      border-color: var(--absent);
+      color: #ffffff;
+    }
+
+    .tile.flip {
+      transform: rotateX(90deg);
+    }
+
+    #keyboard {
+      width: 100%;
+      max-width: 500px;
+      padding: 0 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .key-row {
+      display: flex;
+      justify-content: center;
+      gap: 5px;
+      width: 100%;
+    }
+
+    button.key {
+      font-family: inherit;
+      font-weight: 700;
+      border: 0;
+      padding: 0;
+      height: 54px;
+      border-radius: 4px;
+      cursor: pointer;
+      user-select: none;
+      background-color: var(--key-bg);
+      color: var(--key-text);
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      text-transform: uppercase;
+      font-size: clamp(12px, 3.5vw, 14px);
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+    button.key.large {
+      flex: 1.5;
+      font-size: 12px;
+    }
+
+    button.key.correct {
+      background-color: var(--correct);
+      color: #ffffff;
+    }
+
+    button.key.present {
+      background-color: var(--present);
+      color: #ffffff;
+    }
+
+    button.key.absent {
+      background-color: var(--absent);
+      color: #ffffff;
+    }
+
+    @keyframes pop {
+      0% { transform: scale(0.8); }
+      100% { transform: scale(1); }
+    }
+
+    @keyframes shake {
+      10%, 90% { transform: translate3d(-1px, 0, 0); }
+      20%, 80% { transform: translate3d(2px, 0, 0); }
+      30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+      40%, 60% { transform: translate3d(4px, 0, 0); }
+    }
+
+    .row.shake {
+      animation: shake 0.6s cubic-bezier(.36,.07,.19,.97) both;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>WORDLE</h1>
+    <h2>Birthday Edition</h2>
+  </header>
+
+  <div id="toast-container">
+    <div id="toast" class="toast"></div>
+  </div>
+
+  <div id="board-container">
+    <div id="board"></div>
+  </div>
+
+  <div id="keyboard">
+    <div class="key-row">
+      <button class="key" data-key="Q">Q</button>
+      <button class="key" data-key="W">W</button>
+      <button class="key" data-key="E">E</button>
+      <button class="key" data-key="R">R</button>
+      <button class="key" data-key="T">T</button>
+      <button class="key" data-key="Y">Y</button>
+      <button class="key" data-key="U">U</button>
+      <button class="key" data-key="I">I</button>
+      <button class="key" data-key="O">O</button>
+      <button class="key" data-key="P">P</button>
+    </div>
+    <div class="key-row">
+      <button class="key" data-key="A">A</button>
+      <button class="key" data-key="S">S</button>
+      <button class="key" data-key="D">D</button>
+      <button class="key" data-key="F">F</button>
+      <button class="key" data-key="G">G</button>
+      <button class="key" data-key="H">H</button>
+      <button class="key" data-key="J">J</button>
+      <button class="key" data-key="K">K</button>
+      <button class="key" data-key="L">L</button>
+    </div>
+    <div class="key-row">
+      <button class="key large" data-key="ENTER">ENTER</button>
+      <button class="key" data-key="Z">Z</button>
+      <button class="key" data-key="X">X</button>
+      <button class="key" data-key="C">C</button>
+      <button class="key" data-key="V">V</button>
+      <button class="key" data-key="B">B</button>
+      <button class="key" data-key="N">N</button>
+      <button class="key" data-key="M">M</button>
+      <button class="key large" data-key="BACKSPACE">⌫</button>
+    </div>
+  </div>
+
+  <script>
+    const TARGET_WORD = "PIOUS";
+    const WORD_LENGTH = 5;
+    const MAX_GUESSES = 6;
+
+    let currentRow = 0;
+    let currentTile = 0;
+    let isGameOver = false;
+    let isAnimating = false;
+    let grid = [
+      ['', '', '', '', ''],
+      ['', '', '', '', ''],
+      ['', '', '', '', ''],
+      ['', '', '', '', ''],
+      ['', '', '', '', ''],
+      ['', '', '', '', '']
+    ];
+
+    function initBoard() {
+      const board = document.getElementById('board');
+      board.innerHTML = '';
+      for (let r = 0; r < MAX_GUESSES; r++) {
+        const row = document.createElement('div');
+        row.classList.add('row');
+        row.id = `row-${r}`;
+        for (let c = 0; c < WORD_LENGTH; c++) {
+          const tile = document.createElement('div');
+          tile.classList.add('tile');
+          tile.id = `tile-${r}-${c}`;
+          row.appendChild(tile);
+        }
+        board.appendChild(row);
+      }
+    }
+
+    function showToast(message, duration = 2000) {
+      const toast = document.getElementById("toast");
+      toast.textContent = message;
+      toast.classList.add("show");
+      setTimeout(() => {
+        toast.classList.remove("show");
+      }, duration);
+    }
+
+    function handleKeyPress(key) {
+      if (isGameOver || isAnimating) return;
+
+      if (key === "BACKSPACE" || key === "DELETE") {
+        deleteLetter();
+      } else if (key === "ENTER") {
+        submitGuess();
+      } else if (/^[A-Z]$/.test(key)) {
+        addLetter(key);
+      }
+    }
+
+    function addLetter(letter) {
+      if (currentTile < WORD_LENGTH && currentRow < MAX_GUESSES) {
+        grid[currentRow][currentTile] = letter;
+        const tile = document.getElementById(`tile-${currentRow}-${currentTile}`);
+        tile.textContent = letter;
+        tile.classList.add('filled');
+        currentTile++;
+      }
+    }
+
+    function deleteLetter() {
+      if (currentTile > 0) {
+        currentTile--;
+        grid[currentRow][currentTile] = '';
+        const tile = document.getElementById(`tile-${currentRow}-${currentTile}`);
+        tile.textContent = '';
+        tile.classList.remove('filled');
+      }
+    }
+
+    function submitGuess() {
+      if (currentTile !== WORD_LENGTH) {
+        showToast("Not enough letters");
+        const row = document.getElementById(`row-${currentRow}`);
+        row.classList.remove('shake');
+        void row.offsetWidth; // Trigger reflow to restart animation
+        row.classList.add('shake');
+        return;
+      }
+
+      const guess = grid[currentRow].join('');
+      isAnimating = true;
+
+      // Calculate colors
+      const targetLetters = TARGET_WORD.split('');
+      const guessLetters = guess.split('');
+      const tileColors = new Array(WORD_LENGTH).fill('absent');
+
+      // First pass for correct (Green)
+      for (let i = 0; i < WORD_LENGTH; i++) {
+        if (guessLetters[i] === targetLetters[i]) {
+          tileColors[i] = 'correct';
+          targetLetters[i] = null; // Mark as handled
+        }
+      }
+
+      // Second pass for present (Yellow)
+      for (let i = 0; i < WORD_LENGTH; i++) {
+        if (tileColors[i] !== 'correct') {
+          const index = targetLetters.indexOf(guessLetters[i]);
+          if (index !== -1) {
+            tileColors[i] = 'present';
+            targetLetters[index] = null; // Mark as handled
+          }
+        }
+      }
+
+      // Reveal tiles with flipping animation
+      for (let i = 0; i < WORD_LENGTH; i++) {
+        setTimeout(() => {
+          const tile = document.getElementById(`tile-${currentRow}-${i}`);
+          tile.classList.add('flip');
+          
+          setTimeout(() => {
+            tile.classList.add(tileColors[i]);
+            tile.classList.remove('flip');
+            updateKeyboard(guessLetters[i], tileColors[i]);
+          }, 125); // Apply color halfway through flip
+
+          // Check win/loss on last tile
+          if (i === WORD_LENGTH - 1) {
+            setTimeout(() => {
+              isAnimating = false;
+              checkGameEnd(guess);
+            }, 250);
+          }
+        }, i * 250);
+      }
+    }
+
+    function updateKeyboard(letter, colorClass) {
+      const keyBtn = document.querySelector(`.key[data-key="${letter}"]`);
+      if (!keyBtn) return;
+
+      if (colorClass === 'correct') {
+        keyBtn.className = 'key correct';
+      } else if (colorClass === 'present' && !keyBtn.classList.contains('correct')) {
+        keyBtn.className = 'key present';
+      } else if (colorClass === 'absent' && !keyBtn.classList.contains('correct') && !keyBtn.classList.contains('present')) {
+        keyBtn.className = 'key absent';
+      }
+    }
+
+    function checkGameEnd(guess) {
+      if (guess === TARGET_WORD) {
+        isGameOver = true;
+        showToast("HAPPY BIRTHDAY! YOU WON! 🎉", 5000);
+        triggerConfetti();
+      } else {
+        currentRow++;
+        currentTile = 0;
+        if (currentRow === MAX_GUESSES) {
+          isGameOver = true;
+          showToast(`The word was ${TARGET_WORD}`, 5000);
+        }
+      }
+    }
+
+    function triggerConfetti() {
+      if (typeof confetti === 'function') {
+        var duration = 3 * 1000;
+        var end = Date.now() + duration;
+        (function frame() {
+          confetti({ particleCount: 5, angle: 60, spread: 55, origin: { x: 0 } });
+          confetti({ particleCount: 5, angle: 120, spread: 55, origin: { x: 1 } });
+          if (Date.now() < end) {
+            requestAnimationFrame(frame);
+          }
+        }());
+      }
+    }
+
+    // Event Listeners for On-Screen Keyboard
+    document.querySelectorAll('.key').forEach(button => {
+      button.addEventListener('click', () => {
+        const key = button.getAttribute('data-key');
+        handleKeyPress(key);
+      });
+    });
+
+    // Event Listeners for Physical Keyboard
+    document.addEventListener('keydown', (e) => {
+      let key = e.key.toUpperCase();
+      if (key === "BACKSPACE" || key === "DELETE" || key === "ENTER" || /^[A-Z]$/.test(key)) {
+        handleKeyPress(key);
+      }
+    });
+
+    // Initialize the Game
+    initBoard();
+  </script>
+</body>
+</html>
