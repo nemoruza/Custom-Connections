@@ -83,6 +83,7 @@
       font-weight: 600;
       opacity: 0;
       transition: opacity 0.3s ease;
+      text-align: center;
     }
 
     .toast.show {
@@ -188,6 +189,20 @@
       transform: scale(0.8);
     }
 
+    #hint-area {
+      display: none;
+      background-color: #fff3cd;
+      color: #856404;
+      border: 1px solid #ffeeba;
+      padding: 10px 16px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 700;
+      text-align: center;
+      width: 100%;
+      animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
     .buttons {
       display: flex;
       gap: 10px;
@@ -195,7 +210,7 @@
       justify-content: center;
     }
 
-    btn, button {
+    button {
       background-color: transparent;
       border: 1px solid #000000;
       border-radius: 20px;
@@ -261,7 +276,14 @@
           <div class="dot"></div>
           <div class="dot"></div>
           <div class="dot"></div>
+          <div class="dot"></div>
+          <div class="dot"></div>
+          <div class="dot"></div>
         </div>
+      </div>
+
+      <div id="hint-area">
+        💡 Hint: Senua's Saga isn't what you think it is
       </div>
 
       <div class="buttons">
@@ -276,13 +298,13 @@
     const categories = [
       {
         id: "yellow",
-        title: "Birthday-boy",
+        title: "many names of the birthday boy",
         words: ["NERD", "BORILLA", "ROBOT", "MERMAN"],
         colorClass: "bg-yellow"
       },
       {
         id: "green",
-        title: "Rock bands without the colour in their names",
+        title: "your fav music genre - rock bands, but without colour in their names",
         words: ["SABBATH", "FLOYD", "DAY", "PLAIN T'S"],
         colorClass: "bg-green"
       },
@@ -303,7 +325,7 @@
     let remainingWords = [];
     let selectedWords = [];
     let solvedCategories = [];
-    let mistakes = 4;
+    let mistakes = 7;
     let gameOver = false;
 
     function initGame() {
@@ -363,7 +385,6 @@
         const solvedCat = categories.find(c => c.id === firstId);
         solvedCategories.push(solvedCat);
         
-        // Remove from remaining words
         remainingWords = remainingWords.filter(w => w.categoryId !== firstId);
         selectedWords = [];
         
@@ -375,19 +396,22 @@
           showToast("Correct!", 1500);
         }
       } else {
-        // Check if "One away"
         const counts = {};
         selectedIds.forEach(id => counts[id] = (counts[id] || 0) + 1);
         const maxMatch = Math.max(...Object.values(counts));
 
-        if (maxMatch === 3) {
+        mistakes--;
+        updateMistakes();
+
+        // Trigger Hint exact moment 3rd mistake is made (4 remaining)
+        if (mistakes === 4) {
+          document.getElementById("hint-area").style.display = "block";
+          showToast("💡 Hint: Senua's Saga isn't what you think it is", 4500);
+        } else if (maxMatch === 3) {
           showToast("One away...");
         } else {
           showToast("Not quite!");
         }
-
-        mistakes--;
-        updateMistakes();
 
         if (mistakes === 0) {
           gameOver = true;
@@ -443,7 +467,6 @@
       const grid = document.getElementById("grid");
       grid.innerHTML = "";
 
-      // Render Solved Banners
       solvedCategories.forEach(cat => {
         const banner = document.createElement("div");
         banner.className = `solved-banner ${cat.colorClass}`;
@@ -454,7 +477,6 @@
         grid.appendChild(banner);
       });
 
-      // Render Remaining Cards
       remainingWords.forEach(wordObj => {
         const card = document.createElement("button");
         card.className = "card";
@@ -468,13 +490,11 @@
         grid.appendChild(card);
       });
 
-      // Update Button States
       document.getElementById("deselect-btn").disabled = selectedWords.length === 0 || gameOver;
       document.getElementById("submit-btn").disabled = selectedWords.length !== 4 || gameOver;
       document.getElementById("shuffle-btn").disabled = remainingWords.length === 0 || gameOver;
     }
 
-    // Launch Game
     initGame();
   </script>
 </body>
